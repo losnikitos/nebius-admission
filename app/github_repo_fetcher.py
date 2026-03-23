@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
+import json
 import requests as _requests
-import tomllib
 
 from github import Github
 from github.GithubException import GithubException
@@ -81,9 +81,9 @@ def parse_github_repo_url(github_url: str) -> RepoRef:
 
 
 # These are "unsafe for LLM context" heuristics: binaries, build artifacts, vendor deps, etc.
-_FILTER_CONFIG_PATH = Path(__file__).resolve().parent / "repo_filter_config.toml"
+_FILTER_CONFIG_PATH = Path(__file__).resolve().parent / "repo_filter_config.json"
 
-_FILTER_CONFIG = tomllib.loads(_FILTER_CONFIG_PATH.read_text(encoding="utf-8"))
+_FILTER_CONFIG = json.loads(_FILTER_CONFIG_PATH.read_text(encoding="utf-8"))
 
 _EXCLUDED_DIR_PREFIXES: Sequence[str] = tuple(
     _FILTER_CONFIG["excluded_dir_prefixes"]
