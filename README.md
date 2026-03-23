@@ -26,9 +26,10 @@ Planned model: `meta-llama/Meta-Llama-3.1-8B-Instruct` (chosen as a general-purp
 
 - `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
-## Verify the endpoint
+## Endpoints
 
-Run:
+### `POST /summarize`
+Accepts a JSON body and returns an LLM-generated summary.
 
 ```bash
 curl -X POST http://localhost:8000/summarize \
@@ -36,13 +37,23 @@ curl -X POST http://localhost:8000/summarize \
   -d '{"github_url": "https://github.com/psf/requests"}'
 ```
 
-Expected response (current behavior):
+### `GET /summarize/{owner}/{repo}`
+Browser-friendly equivalent of `POST /summarize`.
+
+```
+http://localhost:8000/summarize/psf/requests
+```
+
+### `GET /prompt/{owner}/{repo}`
+Debug endpoint — returns the exact system and user prompts that would be sent to the LLM, without calling it.
+
+```
+http://localhost:8000/prompt/psf/requests
+```
+
+All three endpoints return the same error shape on failure:
 
 ```json
-{
-  "summary": "Fetched repository file tree; LLM summarization comes next.",
-  "technologies": ["Python"],
-  "structure": "Repository file tree (filenames only):\n- README.md\n- pyproject.toml\n- ..."
-}
+{"status": "error", "message": "..."}
 ```
 

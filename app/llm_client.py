@@ -13,7 +13,7 @@ _NEBIUS_BASE_URL = "https://api.studio.nebius.ai/v1/"
 _MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 
 
-def _build_prompt(ctx: RepoContext) -> str:
+def build_prompt(ctx: RepoContext) -> str:
     meta = ctx.metadata
 
     parts: list[str] = []
@@ -60,7 +60,7 @@ def summarize_repo(ctx: RepoContext) -> tuple[str, List[str], str]:
 
     client = OpenAI(base_url=_NEBIUS_BASE_URL, api_key=api_key)
 
-    user_content = _build_prompt(ctx)
+    user_content = build_prompt(ctx)
 
     response = client.chat.completions.create(
         model=_MODEL,

@@ -10,7 +10,7 @@ from app.github_repo_fetcher import (
     fetch_repo_context,
     parse_github_repo_url,
 )
-from app.llm_client import summarize_repo
+from app.llm_client import summarize_repo, build_prompt, _SYSTEM_PROMPT
 
 
 app = FastAPI(title="Nebius Admission Summarizer (stub)")
@@ -26,15 +26,14 @@ class SummarizeResponse(BaseModel):
     structure: str
 
 
-@app.post("/summarize", response_model=SummarizeResponse)
-def summarize(payload: SummarizeRequest) -> SummarizeResponse:
+def _summarize_url(github_url: str) -> SummarizeResponse:
     try:
-        parse_github_repo_url(payload.github_url)
+        parse_github_repo_url(github_url)
     except ValueError:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid github_url"})
 
     try:
-        ctx = fetch_repo_context(payload.github_url, max_files=200)
+        ctx = fetch_repo_context(github_url, max_files=200)
     except RepoNotFoundError as e:
         raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
     except RepoUnauthorizedError as e:
@@ -51,9 +50,40 @@ def summarize(payload: SummarizeRequest) -> SummarizeResponse:
     except Exception as e:
         raise HTTPException(status_code=502, detail={"status": "error", "message": f"LLM request failed: {e}"})
 
-    return SummarizeResponse(
-        summary=summary,
-        technologies=technologies,
-        structure=structure,
-    )
+    return SummarizeResponse(summary=summary, technologies=technologies, structure=structure)
+
+
+@app.get("/prompt/{owner}/{repo}")
+def prompt_debug(owner: str, repo: str) -> dict:
+    github_url = f"https://github.com/{owner}/{repo}"
+    try:
+        parse_github_repo_url(github_url)
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid repository"})
+
+    try:
+        ctx = fetch_repo_context(github_url, max_files=200)
+    except RepoNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
+    except RepoUnauthorizedError as e:
+        raise HTTPException(status_code=403, detail={"status": "error", "message": f"Unauthorized access: {e}"})
+    except RepoEmptyError as e:
+        raise HTTPException(status_code=422, detail={"status": "error", "message": f"Empty repository: {e}"})
+    except Exception as e:
+        raise HTTPException(status_code=502, detail={"status": "error", "message": f"Failed to fetch repository: {e}"})
+
+    return {
+        "system_prompt": _SYSTEM_PROMPT,
+        "user_prompt": build_prompt(ctx),
+    }
+
+
+@app.get("/summarize/{owner}/{repo}", response_model=SummarizeResponse)
+def summarize_get(owner: str, repo: str) -> SummarizeResponse:
+    return _summarize_url(f"https://github.com/{owner}/{repo}")
+
+
+@app.post("/summarize", response_model=SummarizeResponse)
+def summarize(payload: SummarizeRequest) -> SummarizeResponse:
+    return _summarize_url(payload.github_url)
 

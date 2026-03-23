@@ -32,6 +32,10 @@
 - Decision: Infer `technologies` from file extensions.
 - Why: Works with filenames-only input.
 
+### 2026-03-23: GET convenience endpoints
+- Decision: Add `GET /summarize/{owner}/{repo}` and `GET /prompt/{owner}/{repo}` alongside the canonical `POST /summarize`.
+- Why: Browser-friendly URLs make manual testing faster without needing curl or a REST client. Both routes reuse the same fetch/LLM logic as the POST endpoint; no duplication.
+
 ### 2026-03-23: Error mapping
 - Decision: Map fetch failures to HTTP `404/403/422/502` and return `{status,message}` JSON.
 - Why: Make failures explicit and easy to test/consume.
