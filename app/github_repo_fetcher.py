@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence
 
 import tomllib
 
@@ -40,6 +40,25 @@ class RepoEmptyError(RepoFetchError):
 class RepoRef:
     owner: str
     repo: str
+
+
+@dataclass(frozen=True)
+class RepoMetadata:
+    """Structured metadata from the GitHub repo and languages API endpoints."""
+    description: Optional[str]
+    topics: List[str]
+    # language -> bytes of code, e.g. {"Ruby": 18167777, "JavaScript": 234570}
+    languages: Dict[str, int]
+    default_branch: str
+    homepage: Optional[str]
+    stars: int
+
+
+@dataclass
+class RepoContext:
+    metadata: RepoMetadata
+    # Filtered, sorted file paths from the recursive tree
+    paths: List[str] = field(default_factory=list)
 
 
 def parse_github_repo_url(github_url: str) -> RepoRef:
@@ -114,19 +133,19 @@ def _get_default_branch_commit_sha(repo) -> str:
     return branch.commit.sha
 
 
-def fetch_repo_file_paths(
+def fetch_repo_context(
     github_url: str,
     *,
     max_files: int = 200,
     github_token_env: str = "GITHUB_TOKEN",
-) -> List[str]:
+) -> RepoContext:
     """
-    Fetch a repo's file tree as a list of file paths (filenames only).
+    Fetch repo metadata (description, topics, languages) and filtered file tree.
     Uses the GitHub API via `PyGithub` (no raw HTTP).
     """
     ref = parse_github_repo_url(github_url)
 
-    # Optional to avoid rate limits. If missing, PyGithub still works for public repos.
+    # Optional to avoid rate limits. PyGithub still works for public repos without a token.
     token = os.environ.get(github_token_env) or None
 
     try:
@@ -134,6 +153,8 @@ def fetch_repo_file_paths(
         repo = gh.get_repo(f"{ref.owner}/{ref.repo}")
         sha = _get_default_branch_commit_sha(repo)
         tree = repo.get_git_tree(sha, recursive=True)
+        languages: Dict[str, int] = repo.get_languages()
+        topics: List[str] = repo.get_topics()
     except GithubException as e:
         status = getattr(e, "status", None)
         message = str(e)
@@ -144,6 +165,15 @@ def fetch_repo_file_paths(
         raise RepoFetchError(message)
     except Exception as e:
         raise RepoFetchError(str(e))
+
+    metadata = RepoMetadata(
+        description=repo.description or None,
+        topics=topics,
+        languages=languages,
+        default_branch=repo.default_branch,
+        homepage=repo.homepage or None,
+        stars=repo.stargazers_count,
+    )
 
     paths: List[str] = []
     for entry in tree.tree:
@@ -163,7 +193,7 @@ def fetch_repo_file_paths(
 
     # Keep deterministic order for stable prompts.
     paths = sorted(paths)
-    return paths
+    return RepoContext(metadata=metadata, paths=paths)
 
 
 def make_structure_tree(paths: Sequence[str], *, max_lines: int = 120) -> str:

@@ -43,3 +43,7 @@
 ### 2026-03-23: Technologies inference config
 - Decision: Move extension-to-technology inference into the same repo-filter config.
 - Why: Keep repo heuristics centralized and editable without touching code.
+
+### 2026-03-23: Fetch repo metadata alongside file tree
+- Decision: `fetch_repo_context` returns `RepoContext(metadata, paths)` where `metadata` holds `description`, `topics`, `languages` (lang→LoC bytes), `default_branch`, `homepage`, and `stars` from the GitHub repo and languages API endpoints.
+- Why: These fields are high-signal for LLM summarization and cheap to fetch with the same PyGithub `repo` object already in hand. Topics and language breakdown directly answer "what does this do" and "what technologies are used".
