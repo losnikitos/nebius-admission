@@ -18,13 +18,13 @@ from app.github_repo_fetcher import (
     RepoEmptyError,
     RepoNotFoundError,
     RepoUnauthorizedError,
-    fetch_repo_context,
     parse_github_repo_url,
 )
+from app.repo_data import fetch_repo_data
 from app.llm_client import summarize_repo, build_prompt, _SYSTEM_PROMPT
 
 
-app = FastAPI(title="Nebius Admission Summarizer (stub)")
+app = FastAPI(title="Nebius Admission Summarizer")
 
 
 @app.exception_handler(HTTPException)
@@ -60,7 +60,7 @@ def _summarize_url(github_url: str) -> SummarizeResponse:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid github_url"})
 
     try:
-        ctx = fetch_repo_context(github_url, max_files=200)
+        data = fetch_repo_data(github_url)
     except RepoNotFoundError as e:
         raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
     except RepoUnauthorizedError as e:
@@ -71,7 +71,7 @@ def _summarize_url(github_url: str) -> SummarizeResponse:
         raise HTTPException(status_code=502, detail={"status": "error", "message": f"Failed to fetch repository: {e}"})
 
     try:
-        summary, technologies, structure = summarize_repo(ctx)
+        summary, technologies, structure = summarize_repo(data)
     except ValueError as e:
         raise HTTPException(status_code=502, detail={"status": "error", "message": f"LLM returned invalid response: {e}"})
     except Exception as e:
@@ -89,7 +89,7 @@ def prompt_debug(owner: str, repo: str) -> dict:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid repository"})
 
     try:
-        ctx = fetch_repo_context(github_url, max_files=200)
+        data = fetch_repo_data(github_url)
     except RepoNotFoundError as e:
         raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
     except RepoUnauthorizedError as e:
@@ -101,7 +101,41 @@ def prompt_debug(owner: str, repo: str) -> dict:
 
     return {
         "system_prompt": _SYSTEM_PROMPT,
-        "user_prompt": build_prompt(ctx),
+        "user_prompt": build_prompt(data),
+    }
+
+
+@app.get("/data/{owner}/{repo}")
+def repo_data_debug(owner: str, repo: str) -> dict:
+    github_url = f"https://github.com/{owner}/{repo}"
+    try:
+        parse_github_repo_url(github_url)
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid repository"})
+
+    try:
+        data = fetch_repo_data(github_url)
+    except RepoNotFoundError as e:
+        raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
+    except RepoUnauthorizedError as e:
+        raise HTTPException(status_code=403, detail={"status": "error", "message": f"Unauthorized access: {e}"})
+    except RepoEmptyError as e:
+        raise HTTPException(status_code=422, detail={"status": "error", "message": f"Empty repository: {e}"})
+    except Exception as e:
+        raise HTTPException(status_code=502, detail={"status": "error", "message": f"Failed to fetch repository: {e}"})
+
+    return {
+        "owner": data.owner,
+        "repo_name": data.repo_name,
+        "description": data.description,
+        "topics": data.topics,
+        "languages": data.languages,
+        "homepage": data.homepage,
+        "root_files": data.root_files,
+        "key_files_content": [
+            {"name": kf.name, "content": kf.content}
+            for kf in data.key_files_content
+        ],
     }
 
 
@@ -113,4 +147,3 @@ def summarize_get(owner: str, repo: str) -> SummarizeResponse:
 @app.post("/summarize", response_model=SummarizeResponse)
 def summarize(payload: SummarizeRequest) -> SummarizeResponse:
     return _summarize_url(payload.github_url)
-

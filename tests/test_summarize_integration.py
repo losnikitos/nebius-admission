@@ -3,27 +3,21 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.github_repo_fetcher import RepoContext, RepoMetadata
+from app.repo_data import RepoData, KeyFileContent
 
 
-_FAKE_PATHS = [
-    "README.md",
-    "pyproject.toml",
-    "src/requests/__init__.py",
-    "tests/test_requests.py",
-    ".github/workflows/ci.yml",
-]
-
-_FAKE_CONTEXT = RepoContext(
-    metadata=RepoMetadata(
-        description="A simple, yet elegant, HTTP library.",
-        topics=["http", "python", "requests"],
-        languages={"Python": 500000, "Shell": 1000},
-        default_branch="main",
-        homepage="https://requests.readthedocs.io",
-        stars=52000,
-    ),
-    paths=_FAKE_PATHS,
+_FAKE_DATA = RepoData(
+    owner="psf",
+    repo_name="requests",
+    description="A simple, yet elegant, HTTP library.",
+    topics=["http", "python", "requests"],
+    languages={"Python": 500000, "Shell": 1000},
+    homepage="https://requests.readthedocs.io",
+    root_files=["README.md", "pyproject.toml", "src/", "tests/", ".github/"],
+    key_files_content=[
+        KeyFileContent(name="README.md", content="# Requests\nHTTP for Humans."),
+        KeyFileContent(name="pyproject.toml", content='[project]\nname = "requests"'),
+    ],
 )
 
 _FAKE_SUMMARY = (
@@ -36,7 +30,7 @@ def test_post_summarize_returns_200() -> None:
     client = TestClient(app)
 
     with (
-        patch("app.main.fetch_repo_context", return_value=_FAKE_CONTEXT),
+        patch("app.main.fetch_repo_data", return_value=_FAKE_DATA),
         patch("app.main.summarize_repo", return_value=_FAKE_SUMMARY),
     ):
         response = client.post(
@@ -50,4 +44,3 @@ def test_post_summarize_returns_200() -> None:
     assert isinstance(payload["summary"], str)
     assert isinstance(payload["technologies"], list)
     assert "structure" in payload
-

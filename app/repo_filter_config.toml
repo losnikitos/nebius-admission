@@ -61,6 +61,43 @@ excluded_lock_filenames = [
   "Cargo.lock"
 ]
 
+# Files to always fetch content for (matched by exact filename at any depth,
+# checked against root-level files only).
+key_files = [
+  "README.md",
+  "README.rst",
+  "README.txt",
+  "README",
+  "package.json",
+  "requirements.txt",
+  "pyproject.toml",
+  "setup.py",
+  "setup.cfg",
+  "Cargo.toml",
+  "go.mod",
+  "go.sum",
+  "Gemfile",
+  "Pipfile",
+  "composer.json",
+  "pom.xml",
+  "build.gradle",
+  "build.gradle.kts",
+  "CMakeLists.txt",
+  "Makefile",
+  "Dockerfile",
+  "docker-compose.yml",
+  "docker-compose.yaml",
+  "main.py",
+  "app.py",
+  "server.py",
+  "index.js",
+  "index.ts",
+  "main.go",
+  "main.rs",
+  "main.c",
+  "main.cpp"
+]
+
 [extension_to_tech]
 ".py" = "Python"
 ".js" = "JavaScript"
