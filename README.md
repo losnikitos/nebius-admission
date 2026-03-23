@@ -124,6 +124,32 @@ http://localhost:8000/prompt/psf/requests
 
 ---
 
+### `GET /data/{owner}/{repo}` (debug)
+
+Returns the raw repository context that would be fed to the LLM — metadata, root directory listing, and the content of key files — without calling the LLM. Useful for verifying what the fetcher and filter pipeline actually selected.
+
+```
+http://localhost:8000/data/psf/requests
+```
+
+**Response:**
+```json
+{
+  "owner": "psf",
+  "repo_name": "requests",
+  "description": "...",
+  "topics": ["..."],
+  "languages": {"Python": 123456},
+  "homepage": "...",
+  "root_paths": ["README.md", "src/", "tests/"],
+  "key_files": [
+    {"name": "README.md", "content": "..."}
+  ]
+}
+```
+
+---
+
 ## Repository processing strategy
 
 The service applies a multi-stage filtering and prioritization pipeline before passing content to the LLM:
