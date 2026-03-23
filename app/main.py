@@ -18,9 +18,9 @@ from app.github_repo_fetcher import (
     RepoEmptyError,
     RepoNotFoundError,
     RepoUnauthorizedError,
+    fetch_repo_context,
     parse_github_repo_url,
 )
-from app.repo_data import fetch_repo_data
 from app.llm_client import summarize_repo, build_prompt, _SYSTEM_PROMPT
 
 
@@ -60,7 +60,7 @@ def _summarize_url(github_url: str) -> SummarizeResponse:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid github_url"})
 
     try:
-        data = fetch_repo_data(github_url)
+        data = fetch_repo_context(github_url)
     except RepoNotFoundError as e:
         raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
     except RepoUnauthorizedError as e:
@@ -89,7 +89,7 @@ def prompt_debug(owner: str, repo: str) -> dict:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid repository"})
 
     try:
-        data = fetch_repo_data(github_url)
+        data = fetch_repo_context(github_url)
     except RepoNotFoundError as e:
         raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
     except RepoUnauthorizedError as e:
@@ -114,7 +114,7 @@ def repo_data_debug(owner: str, repo: str) -> dict:
         raise HTTPException(status_code=400, detail={"status": "error", "message": "Invalid repository"})
 
     try:
-        data = fetch_repo_data(github_url)
+        data = fetch_repo_context(github_url)
     except RepoNotFoundError as e:
         raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
     except RepoUnauthorizedError as e:
@@ -127,15 +127,11 @@ def repo_data_debug(owner: str, repo: str) -> dict:
     return {
         "owner": data.owner,
         "repo_name": data.repo_name,
-        "description": data.description,
-        "topics": data.topics,
-        "languages": data.languages,
-        "homepage": data.homepage,
-        "root_files": data.root_files,
-        "key_files_content": [
-            {"name": kf.name, "content": kf.content}
-            for kf in data.key_files_content
-        ],
+        "description": data.metadata.description,
+        "topics": data.metadata.topics,
+        "languages": data.metadata.languages,
+        "homepage": data.metadata.homepage,
+        "paths": data.paths,
     }
 
 
