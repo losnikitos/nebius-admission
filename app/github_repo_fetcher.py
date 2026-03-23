@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
+import requests as _requests
 import tomllib
 
 from github import Github
@@ -59,6 +60,10 @@ class RepoContext:
     metadata: RepoMetadata
     # Filtered, sorted file paths from the recursive tree
     paths: List[str] = field(default_factory=list)
+    # Fields needed for tool-based file access
+    owner: str = ""
+    repo_name: str = ""
+    commit_sha: str = ""
 
 
 def parse_github_repo_url(github_url: str) -> RepoRef:
@@ -127,6 +132,49 @@ def guess_technologies_from_paths(paths: Iterable[str]) -> List[str]:
     return techs
 
 
+_MAX_FILE_CONTENT_CHARS = 8_000
+
+
+def ls_directory(paths: List[str], directory: str) -> List[str]:
+    """Return immediate children (files and subdirs) of *directory* from the flat path list."""
+    prefix = directory.rstrip("/") + "/" if directory.strip("/") else ""
+    entries: set[str] = set()
+    for path in paths:
+        if not path.startswith(prefix):
+            continue
+        rest = path[len(prefix):]
+        if not rest:
+            continue
+        slash = rest.find("/")
+        if slash == -1:
+            entries.add(prefix + rest)
+        else:
+            entries.add(prefix + rest[:slash] + "/")
+    return sorted(entries)
+
+
+def fetch_file_content(owner: str, repo_name: str, commit_sha: str, path: str) -> str:
+    """Fetch raw file content from GitHub. Returns text or an error string."""
+    if not owner or not repo_name or not commit_sha:
+        return "Error: repo context not fully initialised (missing owner/repo/sha)."
+    url = f"https://raw.githubusercontent.com/{owner}/{repo_name}/{commit_sha}/{path}"
+    try:
+        resp = _requests.get(url, timeout=15)
+    except _requests.RequestException as exc:
+        return f"Error fetching '{path}': {exc}"
+    if resp.status_code == 404:
+        return f"Error: '{path}' not found in repository."
+    if not resp.ok:
+        return f"Error: HTTP {resp.status_code} fetching '{path}'."
+    try:
+        content = resp.content.decode("utf-8")
+    except UnicodeDecodeError:
+        return f"Error: '{path}' appears to be a binary file."
+    if len(content) > _MAX_FILE_CONTENT_CHARS:
+        content = content[:_MAX_FILE_CONTENT_CHARS] + f"\n... (truncated; {len(content)} total chars)"
+    return content
+
+
 def _get_default_branch_commit_sha(repo) -> str:
     default_branch = repo.default_branch
     branch = repo.get_branch(default_branch)
@@ -193,7 +241,7 @@ def fetch_repo_context(
 
     # Keep deterministic order for stable prompts.
     paths = sorted(paths)
-    return RepoContext(metadata=metadata, paths=paths)
+    return RepoContext(metadata=metadata, paths=paths, owner=ref.owner, repo_name=ref.repo, commit_sha=sha)
 
 
 def make_structure_tree(paths: Sequence[str], *, max_lines: int = 120) -> str:

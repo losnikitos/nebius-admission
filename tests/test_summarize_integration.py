@@ -26,12 +26,19 @@ _FAKE_CONTEXT = RepoContext(
     paths=_FAKE_PATHS,
 )
 
+_FAKE_SUMMARY = (
+    "requests is a popular HTTP library for Python.",
+    ["Python", "HTTP"],
+    "The project has a src layout with tests alongside the source.",
+)
 
 def test_post_summarize_returns_200() -> None:
     client = TestClient(app)
 
-    # Avoid relying on network access in unit tests.
-    with patch("app.main.fetch_repo_context", return_value=_FAKE_CONTEXT):
+    with (
+        patch("app.main.fetch_repo_context", return_value=_FAKE_CONTEXT),
+        patch("app.main.summarize_repo", return_value=_FAKE_SUMMARY),
+    ):
         response = client.post(
             "/summarize",
             json={"github_url": "https://github.com/psf/requests"},
