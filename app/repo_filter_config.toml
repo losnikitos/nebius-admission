@@ -1,0 +1,78 @@
+excluded_dir_prefixes = [
+  ".git/",
+  "node_modules/",
+  "bower_components/",
+  "dist/",
+  "build/",
+  "target/",
+  "out/",
+  "coverage/",
+  ".pytest_cache/",
+  ".mypy_cache/",
+  "__pycache__/",
+  ".venv/",
+  "venv/"
+]
+
+excluded_file_extensions = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".ico",
+  ".pdf",
+  ".zip",
+  ".tar",
+  ".gz",
+  ".tgz",
+  ".rar",
+  ".7z",
+  ".exe",
+  ".dll",
+  ".so",
+  ".dylib",
+  ".class",
+  ".jar",
+  ".wasm",
+  ".mp3",
+  ".mp4",
+  ".mov",
+  ".avi",
+  ".mkv",
+  ".webm",
+  ".eot",
+  ".ttf",
+  ".woff",
+  ".woff2",
+  ".map"
+]
+
+excluded_lock_filenames = [
+  "package-lock.json",
+  "yarn.lock",
+  "pnpm-lock.yaml",
+  "bun.lockb",
+  "poetry.lock",
+  "Pipfile.lock",
+  "requirements-dev.txt"
+]
+
+[extension_to_tech]
+".py" = "Python"
+".js" = "JavaScript"
+".ts" = "TypeScript"
+".go" = "Go"
+".rs" = "Rust"
+".java" = "Java"
+".rb" = "Ruby"
+".php" = "PHP"
+".cs" = "C#"
+".cpp" = "C++"
+".c" = "C"
+".swift" = "Swift"
+".kt" = "Kotlin"
+".m" = "Objective-C"
+".scala" = "Scala"
+

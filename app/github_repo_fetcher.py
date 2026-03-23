@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Iterable, List, Sequence, Tuple
-from urllib.parse import urlparse
+from pathlib import Path
+from typing import Iterable, List, Sequence
+
+import tomllib
 
 from github import Github
 from github.GithubException import GithubException
@@ -47,66 +49,20 @@ def parse_github_repo_url(github_url: str) -> RepoRef:
 
 
 # These are "unsafe for LLM context" heuristics: binaries, build artifacts, vendor deps, etc.
-_EXCLUDED_DIR_PREFIXES: Sequence[str] = (
-    ".git/",
-    "node_modules/",
-    "bower_components/",
-    "dist/",
-    "build/",
-    "target/",
-    "out/",
-    "coverage/",
-    ".pytest_cache/",
-    ".mypy_cache/",
-    "__pycache__/",
-    ".venv/",
-    "venv/",
-)
+_FILTER_CONFIG_PATH = Path(__file__).resolve().parent / "repo_filter_config.toml"
 
-_EXCLUDED_FILE_EXTENSIONS: Sequence[str] = (
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".webp",
-    ".svg",
-    ".ico",
-    ".pdf",
-    ".zip",
-    ".tar",
-    ".gz",
-    ".tgz",
-    ".rar",
-    ".7z",
-    ".exe",
-    ".dll",
-    ".so",
-    ".dylib",
-    ".class",
-    ".jar",
-    ".wasm",
-    ".mp3",
-    ".mp4",
-    ".mov",
-    ".avi",
-    ".mkv",
-    ".webm",
-    ".eot",
-    ".ttf",
-    ".woff",
-    ".woff2",
-    ".map",
-)
+_FILTER_CONFIG = tomllib.loads(_FILTER_CONFIG_PATH.read_text(encoding="utf-8"))
 
-_EXCLUDED_LOCK_FILENAMES = {
-    "package-lock.json",
-    "yarn.lock",
-    "pnpm-lock.yaml",
-    "bun.lockb",
-    "poetry.lock",
-    "Pipfile.lock",
-    "requirements-dev.txt",
-}
+_EXCLUDED_DIR_PREFIXES: Sequence[str] = tuple(
+    _FILTER_CONFIG["excluded_dir_prefixes"]
+)
+_EXCLUDED_FILE_EXTENSIONS: Sequence[str] = tuple(
+    _FILTER_CONFIG["excluded_file_extensions"]
+)
+_EXCLUDED_LOCK_FILENAMES = set(_FILTER_CONFIG["excluded_lock_filenames"])
+_EXTENSION_TO_TECH: dict[str, str] = dict(
+    _FILTER_CONFIG.get("extension_to_tech", {})
+)
 
 
 def _is_excluded_path(path: str) -> bool:
@@ -138,27 +94,9 @@ def _guess_technologies_from_paths(paths: Iterable[str]) -> List[str]:
         if name not in techs:
             techs.append(name)
 
-    ext_to_tech = {
-        ".py": "Python",
-        ".js": "JavaScript",
-        ".ts": "TypeScript",
-        ".go": "Go",
-        ".rs": "Rust",
-        ".java": "Java",
-        ".rb": "Ruby",
-        ".php": "PHP",
-        ".cs": "C#",
-        ".cpp": "C++",
-        ".c": "C",
-        ".swift": "Swift",
-        ".kt": "Kotlin",
-        ".m": "Objective-C",
-        ".scala": "Scala",
-    }
-
     for p in paths:
         lower = p.lower()
-        for ext, tech in ext_to_tech.items():
+        for ext, tech in _EXTENSION_TO_TECH.items():
             if lower.endswith(ext):
                 add_once(tech)
                 break

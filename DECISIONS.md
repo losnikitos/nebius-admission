@@ -20,6 +20,10 @@
 - Decision: Exclude obvious binaries/vendor/lock artifacts and cap at `max_files=200` (sorted).
 - Why: Reduce noise and prevent context blow-ups later.
 
+### 2026-03-23: Repo filter config format
+- Decision: Store filter + extension heuristics in `repo_filter_config.toml` (TOML).
+- Why: No extra dependencies; editability without code changes.
+
 ### 2026-03-23: Optional GitHub token
 - Decision: If `GITHUB_TOKEN` is set, pass it to `PyGithub`; otherwise use unauthenticated access.
 - Why: Lower rate limits without making the token mandatory for tests.
@@ -35,3 +39,7 @@
 ### 2026-03-23: Tests avoid network
 - Decision: Mock `fetch_repo_file_paths` in integration tests.
 - Why: Prevent CI flakiness from GitHub/network variability.
+
+### 2026-03-23: Technologies inference config
+- Decision: Move extension-to-technology inference into the same repo-filter config.
+- Why: Keep repo heuristics centralized and editable without touching code.
