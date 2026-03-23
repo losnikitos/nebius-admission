@@ -2,7 +2,9 @@ import logging
 from typing import List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 load_dotenv()
 
@@ -23,6 +25,22 @@ from app.llm_client import summarize_repo, build_prompt, _SYSTEM_PROMPT
 
 
 app = FastAPI(title="Nebius Admission Summarizer (stub)")
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail
+    if not isinstance(detail, dict):
+        detail = {"status": "error", "message": str(detail)}
+    return JSONResponse(status_code=exc.status_code, content=detail)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"status": "error", "message": f"Invalid request: {exc}"},
+    )
 
 
 class SummarizeRequest(BaseModel):
