@@ -139,3 +139,6 @@ Scoring (100 total, partial credit allowed):
 2. Keep code readable and ensure robust error handling paths.
 3. Ensure outputs conform to the specified JSON schema.
 
+### Keep documentation up to date
+Document all design decisions in `DECISIONS.md`.
+Keep `README.md` updated.

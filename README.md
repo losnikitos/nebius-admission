@@ -1,6 +1,6 @@
 # Nebius Admission: AI Performance Engineering 2026 (Stub)
 
-This repository currently contains a minimal FastAPI server that exposes the required `POST /summarize` endpoint, but does not fetch or summarize GitHub repositories yet.
+This repository currently contains a minimal FastAPI server that exposes the required `POST /summarize` endpoint and fetches a filename-only repo tree from GitHub (summarization/LLM comes next).
 
 ## Model selection (for the future LLM implementation)
 
@@ -19,6 +19,8 @@ Planned model: `meta-llama/Meta-Llama-3.1-8B-Instruct` (chosen as a general-purp
 
 3. Set the LLM API key environment variable (not used by the current stub, but required for the non-stub implementation):
    - `export NEBIUS_API_KEY="your_key_here"`
+4. (Optional but recommended) Set a GitHub token to reduce rate limiting when fetching repo trees:
+   - `export GITHUB_TOKEN="your_github_token_here"`
 
 ## Run the server
 
@@ -34,13 +36,13 @@ curl -X POST http://localhost:8000/summarize \
   -d '{"github_url": "https://github.com/psf/requests"}'
 ```
 
-Expected response (stub):
+Expected response (current behavior):
 
 ```json
 {
-  "summary": "OK",
-  "technologies": [],
-  "structure": "Stub: endpoint is wired but repo fetching/summarization is not implemented yet."
+  "summary": "Fetched repository file tree; LLM summarization comes next.",
+  "technologies": ["Python"],
+  "structure": "Repository file tree (filenames only):\n- README.md\n- pyproject.toml\n- ..."
 }
 ```
 

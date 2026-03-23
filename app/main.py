@@ -5,6 +5,15 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.github_repo_fetcher import (
+    RepoEmptyError,
+    RepoNotFoundError,
+    RepoUnauthorizedError,
+    fetch_repo_file_paths,
+    guess_technologies_from_paths,
+    make_structure_tree,
+)
+
 
 app = FastAPI(title="Nebius Admission Summarizer (stub)")
 
@@ -44,10 +53,37 @@ def summarize(payload: SummarizeRequest) -> SummarizeResponse | JSONResponse:
             content={"status": "error", "message": "Invalid github_url"},
         )
 
-    # No fetching / parsing / LLM calls yet (stub mode).
+    try:
+        paths = fetch_repo_file_paths(payload.github_url, max_files=200)
+        technologies = guess_technologies_from_paths(paths)
+        structure = make_structure_tree(paths)
+    except RepoNotFoundError as e:
+        return JSONResponse(
+            status_code=404,
+            content={"status": "error", "message": f"Repository not found: {e}"},
+        )
+    except RepoUnauthorizedError as e:
+        return JSONResponse(
+            status_code=403,
+            content={"status": "error", "message": f"Unauthorized access: {e}"},
+        )
+    except RepoEmptyError as e:
+        return JSONResponse(
+            status_code=422,
+            content={"status": "error", "message": f"Empty repository: {e}"},
+        )
+    except Exception as e:
+        # Covers network errors, rate limiting, GitHub API failures, etc.
+        return JSONResponse(
+            status_code=502,
+            content={"status": "error", "message": f"Failed to fetch repository: {e}"},
+        )
+
+    # Next step will be LLM summarization using filenames + (later) selective contents.
+    # For now, we provide a deterministic placeholder summary based on the fetched tree.
     return SummarizeResponse(
-        summary="OK",
-        technologies=[],
-        structure="Stub: endpoint is wired but repo fetching/summarization is not implemented yet.",
+        summary="Fetched repository file tree; LLM summarization comes next.",
+        technologies=technologies,
+        structure=structure,
     )
 
