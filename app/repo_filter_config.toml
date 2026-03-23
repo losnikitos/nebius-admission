@@ -56,7 +56,9 @@ excluded_lock_filenames = [
   "bun.lockb",
   "poetry.lock",
   "Pipfile.lock",
-  "requirements-dev.txt"
+  "Gemfile.lock",
+  "composer.lock",
+  "Cargo.lock"
 ]
 
 [extension_to_tech]

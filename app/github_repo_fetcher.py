@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -87,7 +88,7 @@ def _is_excluded_path(path: str) -> bool:
     return False
 
 
-def _guess_technologies_from_paths(paths: Iterable[str]) -> List[str]:
+def guess_technologies_from_paths(paths: Iterable[str]) -> List[str]:
     techs: List[str] = []
 
     def add_once(name: str) -> None:
@@ -101,20 +102,10 @@ def _guess_technologies_from_paths(paths: Iterable[str]) -> List[str]:
                 add_once(tech)
                 break
 
-        # Basic framework hints from common filenames.
         if lower.endswith("requirements.txt") or lower == "pyproject.toml":
             add_once("Python")
-        if lower.startswith("src/") and any(
-            lower.endswith(ext) for ext in (".py", ".ts", ".js", ".java")
-        ):
-            # Keep it light; will likely already have language from extension.
-            pass
 
     return techs
-
-
-def guess_technologies_from_paths(paths: Iterable[str]) -> List[str]:
-    return _guess_technologies_from_paths(paths)
 
 
 def _get_default_branch_commit_sha(repo) -> str:
@@ -135,14 +126,8 @@ def fetch_repo_file_paths(
     """
     ref = parse_github_repo_url(github_url)
 
-    token = None
     # Optional to avoid rate limits. If missing, PyGithub still works for public repos.
-    try:
-        import os
-
-        token = os.environ.get(github_token_env) or None
-    except Exception:
-        token = None
+    token = os.environ.get(github_token_env) or None
 
     try:
         gh = Github(login_or_token=token) if token else Github()
@@ -155,27 +140,21 @@ def fetch_repo_file_paths(
         if status == 404:
             raise RepoNotFoundError(message)
         if status == 401 or status == 403:
-            # Can be "private repo", "rate limited", or other auth failures.
-            if "rate limit" in message.lower():
-                raise RepoUnauthorizedError(message)
             raise RepoUnauthorizedError(message)
         raise RepoFetchError(message)
     except Exception as e:
         raise RepoFetchError(str(e))
 
     paths: List[str] = []
-    for entry in getattr(tree, "tree", []) or []:
-        entry_type = getattr(entry, "type", None)
-        if entry_type != "blob":
+    for entry in tree.tree:
+        if entry.type != "blob":
+            continue
+        if not entry.path:
+            continue
+        if _is_excluded_path(entry.path):
             continue
 
-        entry_path = getattr(entry, "path", None)
-        if not entry_path:
-            continue
-        if _is_excluded_path(entry_path):
-            continue
-
-        paths.append(entry_path)
+        paths.append(entry.path)
         if len(paths) >= max_files:
             break
 
