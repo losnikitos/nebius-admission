@@ -3,3 +3,4 @@ uvicorn[standard]==0.30.6
 pydantic==2.10.5
 pytest
 PyGithub==2.9.0
+openai>=1.0.0

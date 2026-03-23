@@ -8,10 +8,9 @@ from app.github_repo_fetcher import (
     RepoNotFoundError,
     RepoUnauthorizedError,
     fetch_repo_context,
-    guess_technologies_from_paths,
-    make_structure_tree,
     parse_github_repo_url,
 )
+from app.llm_client import summarize_repo
 
 
 app = FastAPI(title="Nebius Admission Summarizer (stub)")
@@ -36,8 +35,6 @@ def summarize(payload: SummarizeRequest) -> SummarizeResponse:
 
     try:
         ctx = fetch_repo_context(payload.github_url, max_files=200)
-        technologies = guess_technologies_from_paths(ctx.paths)
-        structure = make_structure_tree(ctx.paths)
     except RepoNotFoundError as e:
         raise HTTPException(status_code=404, detail={"status": "error", "message": f"Repository not found: {e}"})
     except RepoUnauthorizedError as e:
@@ -47,15 +44,12 @@ def summarize(payload: SummarizeRequest) -> SummarizeResponse:
     except Exception as e:
         raise HTTPException(status_code=502, detail={"status": "error", "message": f"Failed to fetch repository: {e}"})
 
-    # Next step: pass ctx.metadata + structure to the LLM for summarization.
-    # For now, return a deterministic placeholder derived from fetched data.
-    meta = ctx.metadata
-    summary_parts = []
-    if meta.description:
-        summary_parts.append(meta.description)
-    if meta.topics:
-        summary_parts.append(f"Topics: {', '.join(meta.topics)}.")
-    summary = " ".join(summary_parts) if summary_parts else "Fetched repository; LLM summarization comes next."
+    try:
+        summary, technologies, structure = summarize_repo(ctx)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail={"status": "error", "message": f"LLM returned invalid response: {e}"})
+    except Exception as e:
+        raise HTTPException(status_code=502, detail={"status": "error", "message": f"LLM request failed: {e}"})
 
     return SummarizeResponse(
         summary=summary,
