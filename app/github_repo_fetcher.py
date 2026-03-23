@@ -55,11 +55,18 @@ class RepoMetadata:
     stars: int
 
 
+@dataclass(frozen=True)
+class KeyFileContent:
+    name: str
+    content: str
+
+
 @dataclass
 class RepoContext:
     metadata: RepoMetadata
     # Filtered, sorted file paths from the recursive tree
     paths: List[str] = field(default_factory=list)
+    key_files_content: List[KeyFileContent] = field(default_factory=list)
     # Fields needed for tool-based file access
     owner: str = ""
     repo_name: str = ""
@@ -88,6 +95,8 @@ _EXCLUDED_LOCK_FILENAMES = set(_FILTER_CONFIG["excluded_lock_filenames"])
 _EXTENSION_TO_TECH: dict[str, str] = dict(
     _FILTER_CONFIG.get("extension_to_tech", {})
 )
+_KEY_FILES: List[str] = _FILTER_CONFIG.get("key_files", [])
+_MAX_KEY_FILE_CHARS = 12_000
 
 
 def _is_excluded_path(path: str) -> bool:
@@ -241,7 +250,26 @@ def fetch_repo_context(
 
     # Keep deterministic order for stable prompts.
     paths = sorted(paths)
-    return RepoContext(metadata=metadata, paths=paths, owner=ref.owner, repo_name=ref.repo, commit_sha=sha)
+
+    # Fetch key files that exist in the repo
+    paths_set = set(paths)
+    key_files_content: List[KeyFileContent] = []
+    for filename in _KEY_FILES:
+        if filename not in paths_set:
+            continue
+        content = fetch_file_content(ref.owner, ref.repo, sha, filename)
+        if len(content) > _MAX_KEY_FILE_CHARS:
+            content = content[:_MAX_KEY_FILE_CHARS] + "\n... (truncated)"
+        key_files_content.append(KeyFileContent(name=filename, content=content))
+
+    return RepoContext(
+        metadata=metadata,
+        paths=paths,
+        key_files_content=key_files_content,
+        owner=ref.owner,
+        repo_name=ref.repo,
+        commit_sha=sha,
+    )
 
 
 def make_structure_tree(paths: Sequence[str], *, max_lines: int = 120) -> str:

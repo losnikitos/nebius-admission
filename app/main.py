@@ -19,6 +19,7 @@ from app.github_repo_fetcher import (
     RepoNotFoundError,
     RepoUnauthorizedError,
     fetch_repo_context,
+    ls_directory,
     parse_github_repo_url,
 )
 from app.llm_client import summarize_repo, build_prompt, _SYSTEM_PROMPT
@@ -131,7 +132,8 @@ def repo_data_debug(owner: str, repo: str) -> dict:
         "topics": data.metadata.topics,
         "languages": data.metadata.languages,
         "homepage": data.metadata.homepage,
-        "paths": data.paths,
+        "root_paths": ls_directory(data.paths, ""),
+        "key_files": [{"name": kf.name, "content": kf.content} for kf in data.key_files_content],
     }
 
 

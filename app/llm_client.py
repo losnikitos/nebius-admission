@@ -19,16 +19,17 @@ _MAX_TURNS = 30
 
 
 _SYSTEM_PROMPT = """\
-You are a code analyst. You will receive the full filtered file tree of a GitHub repository. \
-Use cat() to read the files that matter most (README, package manifests, entrypoints, configs). \
-For monorepos, read key files from each top-level package or service directory. \
-Use ls() only if you need to inspect a directory not visible in the tree.
-
-When you have enough information, call answer() with:
-- "summary": 2–4 sentence description of what the project does
-- "technologies": array of technology/language/framework names (no duplicates)
+You are a code analyst. \
+Your job is to summarize a GitHub repository, list technologies used and describe the structure of the repository. \
+You will receive metadata and key files for a GitHub repository. \
+In most cases this context is sufficient — call answer() directly without using any tools. \
+Only call cat() if a specific file is clearly missing and would materially change the analysis. \
+Only call ls() if the directory structure is genuinely ambiguous and cannot be inferred from the file tree. \
+    
+When you have enough information, call answer() with: \
+- "summary": 2–4 sentence description of what the project does \
+- "technologies": array of technology/language/framework names (no duplicates) \
 - "structure": 2–3 sentence description of how the project is organised"""
-
 
 _TOOLS = [
     {
@@ -120,13 +121,21 @@ def build_prompt(data: RepoContext) -> str:
         parts.append(f"Homepage: {data.metadata.homepage}")
 
     parts.append("")
-    parts.append("== Full file tree ==")
-    parts.append("\n".join(f"- {p}" for p in data.paths) or "(empty)")
+    parts.append("== Root listing ==")
+    root_entries = ls_directory(data.paths, "")
+    parts.append("\n".join(f"- {e}" for e in root_entries) or "(empty)")
+
+    if data.key_files_content:
+        parts.append("")
+        parts.append("== Key files ==")
+        for kf in data.key_files_content:
+            parts.append(f"\n--- {kf.name} ---")
+            parts.append(kf.content)
 
     parts.append("")
     parts.append(
-        "Use cat() to read any file above. Use ls() if you need to check a directory not shown. "
-        "Call answer() when you have enough information."
+        "The above context is usually sufficient. Call answer() now unless a specific "
+        "critical file is missing. Use cat() or ls() only when truly necessary."
     )
 
     return "\n".join(parts)
