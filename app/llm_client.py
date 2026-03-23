@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 _NEBIUS_BASE_URL = "https://api.studio.nebius.ai/v1/"
 _MODEL = "Qwen/Qwen3-30B-A3B-Instruct-2507"
-_MAX_TURNS = 30
+_MAX_TURNS = 20
 
 
 _SYSTEM_PROMPT = """\
@@ -134,8 +134,9 @@ def build_prompt(data: RepoContext) -> str:
 
     parts.append("")
     parts.append(
-        "The above context is usually sufficient. Call answer() now unless a specific "
-        "critical file is missing. Use cat() or ls() only when truly necessary."
+        f"The above context is usually sufficient. Call answer() now unless a specific "
+        f"critical file is missing. Use cat() or ls() only when truly necessary. "
+        f"You have up to {_MAX_TURNS} tool-call turns total."
     )
 
     return "\n".join(parts)
@@ -261,5 +262,18 @@ def summarize_repo(data: RepoContext) -> tuple[str, List[str], str]:
                 _parse_technologies(answer_result.get("technologies", [])),
                 str(answer_result.get("structure", "")),
             )
+
+        # Inform the LLM how many turns are left before the next call.
+        turns_left = _MAX_TURNS - (turn + 1)
+        if turns_left == 1:
+            messages.append({
+                "role": "user",
+                "content": "1 turn remaining — this is your last chance. Call answer() now.",
+            })
+        elif turns_left > 1:
+            messages.append({
+                "role": "user",
+                "content": f"{turns_left} turns remaining.",
+            })
 
     raise ValueError("LLM did not call answer() within the allowed turns")
