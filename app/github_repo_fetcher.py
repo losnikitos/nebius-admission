@@ -4,7 +4,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import json
 import requests as _requests
@@ -92,9 +92,6 @@ _EXCLUDED_FILE_EXTENSIONS: Sequence[str] = tuple(
     _FILTER_CONFIG["excluded_file_extensions"]
 )
 _EXCLUDED_LOCK_FILENAMES = set(_FILTER_CONFIG["excluded_lock_filenames"])
-_EXTENSION_TO_TECH: dict[str, str] = dict(
-    _FILTER_CONFIG.get("extension_to_tech", {})
-)
 _KEY_FILES: List[str] = _FILTER_CONFIG.get("key_files", [])
 _MAX_KEY_FILE_CHARS = 12_000
 
@@ -120,25 +117,6 @@ def _is_excluded_path(path: str) -> bool:
 
     return False
 
-
-def guess_technologies_from_paths(paths: Iterable[str]) -> List[str]:
-    techs: List[str] = []
-
-    def add_once(name: str) -> None:
-        if name not in techs:
-            techs.append(name)
-
-    for p in paths:
-        lower = p.lower()
-        for ext, tech in _EXTENSION_TO_TECH.items():
-            if lower.endswith(ext):
-                add_once(tech)
-                break
-
-        if lower.endswith("requirements.txt") or lower == "pyproject.toml":
-            add_once("Python")
-
-    return techs
 
 
 _MAX_FILE_CONTENT_CHARS = 8_000
