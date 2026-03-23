@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import List
 
 from openai import OpenAI
 
+logger = logging.getLogger(__name__)
+
 from app.github_repo_fetcher import RepoContext, fetch_file_content, ls_directory
 
 
 _NEBIUS_BASE_URL = "https://api.studio.nebius.ai/v1/"
-_MODEL = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+# _MODEL = "moonshotai/Kimi-K2.5-fast"
+_MODEL = "nvidia/nemotron-3-super-120b-a12b"
 
 _MAX_TOOL_CALLS = 20
 
@@ -18,6 +22,8 @@ def build_prompt(ctx: RepoContext) -> str:
     meta = ctx.metadata
 
     parts: list[str] = []
+
+    parts.append(f"Repository URL: https://github.com/{ctx.owner}/{ctx.repo_name}")
 
     parts.append("== Repository Metadata ==")
     if meta.description:
@@ -33,8 +39,6 @@ def build_prompt(ctx: RepoContext) -> str:
         parts.append(f"Languages: {lang_summary}")
     if meta.homepage:
         parts.append(f"Homepage: {meta.homepage}")
-    parts.append(f"Stars: {meta.stars}")
-    parts.append(f"Default branch: {meta.default_branch}")
 
     parts.append("")
     parts.append(
@@ -131,6 +135,18 @@ def _execute_tool(name: str, args: dict, ctx: RepoContext) -> str:
     return f"Unknown tool: {name}"
 
 
+def _parse_technologies(value) -> List[str]:
+    """Normalise the technologies field to a list of strings."""
+    if isinstance(value, list):
+        return [str(t).strip() for t in value if str(t).strip()]
+    if isinstance(value, str):
+        # Split on common delimiters: comma, semicolon, newline
+        import re
+        items = re.split(r"[,;\n]+", value)
+        return [item.strip() for item in items if item.strip()]
+    return []
+
+
 def summarize_repo(ctx: RepoContext) -> tuple[str, List[str], str]:
     """Run an agentic tool loop and return (summary, technologies, structure)."""
     api_key = os.environ.get("NEBIUS_API_KEY")
@@ -175,7 +191,7 @@ def summarize_repo(ctx: RepoContext) -> tuple[str, List[str], str]:
                 data = json.loads(raw)
                 return (
                     str(data.get("summary", "")),
-                    [str(t) for t in data.get("technologies", [])],
+                    _parse_technologies(data.get("technologies", [])),
                     str(data.get("structure", "")),
                 )
             except json.JSONDecodeError:
@@ -191,6 +207,8 @@ def summarize_repo(ctx: RepoContext) -> tuple[str, List[str], str]:
                 args = {}
 
             if name == "answer":
+                logger.info("Tool call: answer(summary=%r, technologies=%r, structure=%r)",
+                            args.get("summary", "")[:80], args.get("technologies"), args.get("structure", "")[:80])
                 answer = args
                 # Still need to ack the tool call so the history is valid
                 messages.append({
@@ -199,6 +217,7 @@ def summarize_repo(ctx: RepoContext) -> tuple[str, List[str], str]:
                     "content": "Answer submitted.",
                 })
             else:
+                logger.info("Tool call: %s(%s)", name, ", ".join(f"{k}={v!r}" for k, v in args.items()))
                 result = _execute_tool(name, args, ctx)
                 messages.append({
                     "role": "tool",
@@ -209,7 +228,7 @@ def summarize_repo(ctx: RepoContext) -> tuple[str, List[str], str]:
         if answer is not None:
             return (
                 str(answer.get("summary", "")),
-                [str(t) for t in answer.get("technologies", [])],
+                _parse_technologies(answer.get("technologies", [])),
                 str(answer.get("structure", "")),
             )
 

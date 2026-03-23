@@ -1,9 +1,15 @@
+import logging
 from typing import List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 from pydantic import BaseModel, Field
 
 from app.github_repo_fetcher import (
