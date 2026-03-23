@@ -1,6 +1,9 @@
 from typing import List
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+
+load_dotenv()
 from pydantic import BaseModel, Field
 
 from app.github_repo_fetcher import (
