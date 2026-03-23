@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 _NEBIUS_BASE_URL = "https://api.studio.nebius.ai/v1/"
 _MODEL = "Qwen/Qwen3-30B-A3B-Instruct-2507"
-_MAX_TURNS = 20
+_MAX_TURNS = 10
 
 
 _SYSTEM_PROMPT = """\
